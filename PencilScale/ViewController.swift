@@ -12,6 +12,7 @@ class ViewController: UIViewController {
 
     let nixieDigitDisplay = FMNixieDigitDisplay(numberOfDigits: 8)
     let zeroButton = ZeroButton()
+    let shapeLayer = CAShapeLayer()
     
     override func viewDidLoad()
     {
@@ -22,7 +23,16 @@ class ViewController: UIViewController {
         view.addSubview(zeroButton)
         view.addSubview(nixieDigitDisplay)
         
-        nixieDigitDisplay.setValue(string: "--------")
+        shapeLayer.fillColor = nil
+        shapeLayer.lineDashPattern = [10]
+        shapeLayer.lineWidth = 5
+        shapeLayer.strokeColor = UIColor.yellowColor().CGColor
+        view.layer.addSublayer(shapeLayer)
+        
+        zeroButton.enabled = false
+        zeroButton.addTarget(self, action: "zeroWeight", forControlEvents: UIControlEvents.TouchDown)
+        
+        weight = 0
     }
 
     override func viewDidLayoutSubviews()
@@ -40,28 +50,82 @@ class ViewController: UIViewController {
     
     override func touchesBegan(touches: Set<UITouch>, withEvent event: UIEvent?)
     {
-        guard let touch = touches.first else //  where touch.type == UITouchType.Stylus else
+        guard let touch = touches.first where touch.type == UITouchType.Stylus else
         {
             return
         }
         
-        nixieDigitDisplay.setValue(float: 100 * Float(drand48()))
+        zeroButton.enabled = true
+        
+        update(weight: touch.force, touchLocation: touch.locationInView(view))
     }
     
     override func touchesMoved(touches: Set<UITouch>, withEvent event: UIEvent?)
     {
-        guard let touch = touches.first else //  where touch.type == UITouchType.Stylus else
+        guard let touch = touches.first where touch.type == UITouchType.Stylus else
         {
             return
         }
         
-        nixieDigitDisplay.setValue(float: 100 * Float(drand48()))
+        update(weight: touch.force, touchLocation: touch.locationInView(view))
     }
     
     override func touchesEnded(touches: Set<UITouch>, withEvent event: UIEvent?)
     {
-        nixieDigitDisplay.setValue(string: "--------")
+        zeroButton.enabled = false
+        
+        update(weight: 0, touchLocation: nil)
     }
+    
+    func zeroWeight()
+    {
+        baseWeight = weight
+        
+        update(weight: weight, touchLocation: touchLocation)
+    }
+    
+    func update(weight weight: CGFloat, touchLocation: CGPoint?)
+    {
+        self.weight = weight
+        self.touchLocation = touchLocation
+    }
+    
+    var baseWeight: CGFloat = 0
+    
+    var weight: CGFloat = 0
+    {
+        didSet
+        {
+            if weight == 0
+            {
+               nixieDigitDisplay.setValue(string: "--------")
+            }
+            else
+            {
+                nixieDigitDisplay.setValue(string: String(format: "%.1f", max(0, (weight - baseWeight) * 140)))
+            }
+        }
+    }
+    
+    var touchLocation: CGPoint?
+    {
+        didSet
+        {
+            guard let touchLocation = touchLocation else
+            {
+                shapeLayer.path = nil
+                return
+            }
+            
+            let bezierPath = UIBezierPath(ovalInRect: CGRect(x: touchLocation.x - 100,
+                y: touchLocation.y - 100,
+                width: 200,
+                height: 200))
+            
+            shapeLayer.path = bezierPath.CGPath
+        }
+    }
+    
 }
 
 class ZeroButton: UIButton
